@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#171018">
+<title>转转机｜Zhuanzhuan</title>
+<link rel="stylesheet" href="./web/style.css">
+</head>
+<body>
+<main class="app">
+  <nav class="nav topbar" aria-label="说明"><span>本地优先 · Local-first</span></nav>
+  <header class="hero">
+    <h1>小坏蛋转转机 🎰</h1>
+  </header>
+
+  <section class="panel" id="spinnerApp">
+    <div id="storageStatus" class="storage-status"></div>
+    <div class="cabinet">
+      <div class="cabinet-top"><span>BAD EGG SPINNER</span><span class="star">★</span><span>A NAUGHTY IDEA A DAY</span></div>
+      <div id="slotGrid" class="slot-grid" aria-label="动态老虎机轴位"></div>
+      <button id="addAxisBtn" class="axis-add-btn" type="button">＋ 添加空轴</button>
+      <button id="spinBtn" class="spin-btn" type="button">转起来 ✦</button>
+      <p id="spinNotice" class="spin-notice" role="status" aria-live="polite" hidden></p>
+    </div>
+    <div class="machine-actions" aria-label="卡轴和卡带库操作">
+      <button id="openReelCabinet" class="machine-action primary" type="button">打开卡带库</button>
+      <button id="clearAxesBtn" class="machine-action danger" type="button">清空卡轴</button>
+    </div>
+  </section>
+</main>
+
+<div id="reelCabinetOverlay" class="overlay reel-cabinet-overlay" hidden>
+  <section class="reel-cabinet-modal" role="dialog" aria-modal="true" aria-labelledby="reelCabinetTitle" tabindex="-1">
+    <header class="reel-cabinet-head">
+      <button id="closeReelCabinet" class="cabinet-back" type="button">← 返回主机</button>
+      <div class="reel-cabinet-title"><h2 id="reelCabinetTitle">🎞️ 卡带库</h2><p id="reelCabinetCount">0 / 0 个卡带</p></div>
+      <button id="newTapeBtn" class="cabinet-new" type="button">＋ 新建卡带</button>
+      <button id="batchDoneBtn" class="cabinet-done" type="button" hidden>完成</button>
+    </header>
+    <div class="library-search-row">
+      <label class="reel-search"><span aria-hidden="true">⌕</span><input id="reelSearch" type="search" autocomplete="off" placeholder="搜索卡带名或分类…"></label>
+      <button id="openFilterBtn" class="filter-btn" type="button" aria-label="筛选">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8l-3 5v4.5l2 3.5-3 2-3-2 2-3.5V9L8 4Z"/></svg>
+        <span>筛选</span>
+      </button>
+    </div>
+    <div id="reelCategoryTabs" class="reel-category-tabs" role="tablist" aria-label="卡带分类"></div>
+    <div id="tapeRack" class="reel-cabinet-grid"></div>
+    <div id="libraryNormalBar" class="library-bottom">
+      <button id="randomInstallBtn" type="button">🎲 随机装轴</button>
+      <button id="batchModeBtn" type="button">◇ 批量管理</button>
+      <button id="librarySpinBtn" class="accent" type="button">▶ 开始抽取</button>
+    </div>
+    <div id="libraryBatchBar" class="batch-bar" hidden>
+      <button id="batchSummary" type="button">已选 0 张</button>
+      <button id="selectAllBtn" type="button">全选</button>
+      <button id="invertBtn" type="button">反选</button>
+      <button id="batchActionsBtn" class="accent" type="button">◇ 批量编辑</button>
+    </div>
+  </section>
+</div>
+
+<div id="filterOverlay" class="overlay" hidden>
+  <section class="small-panel" role="dialog" aria-modal="true" aria-labelledby="filterTitle">
+    <header class="sheet-head"><h2 id="filterTitle">筛选</h2><button class="sheet-x" data-close-filter type="button">×</button></header>
+    <div class="filter-section"><strong>录入方</strong><div id="recorderFilters" class="choice-chips"></div></div>
+    <div class="filter-section"><strong>装载状态</strong><div id="loadFilters" class="choice-chips"></div></div>
+    <div class="pair-actions"><button id="resetFilterBtn" type="button">重置</button><button id="applyFilterBtn" class="accent" type="button">应用</button></div>
+  </section>
+</div>
+
+<div id="createOverlay" class="overlay" hidden>
+  <section class="small-panel" role="dialog" aria-modal="true" aria-labelledby="createTitle">
+    <header class="sheet-head"><h2 id="createTitle">新建卡带</h2><button class="sheet-x" data-close-create type="button">×</button></header>
+    <div class="create-grid">
+      <button id="blankCreateBtn" type="button"><span>＋</span><strong>空白新建</strong></button>
+      <label class="file-choice"><span>⇩</span><strong>导入 JSON</strong><input id="importFileInput" type="file" accept=".json,application/json"></label>
+    </div>
+  </section>
+</div>
+
+<div id="randomInstallOverlay" class="overlay" hidden>
+  <section class="small-panel random-panel" role="dialog" aria-modal="true" aria-labelledby="randomTitle">
+    <header class="sheet-head"><h2 id="randomTitle">🎲 随机装轴</h2><button class="sheet-x" data-close-random type="button">×</button></header>
+    <label class="field"><span>分类</span><select id="randomCategory"></select></label>
+    <div class="field"><span>数量</span><div id="randomCountChoices" class="count-choices"><button data-count="3">3</button><button data-count="5" class="active">5</button><button data-count="8">8</button><button data-count="custom">自定义</button></div><input id="randomCustomCount" type="number" inputmode="numeric" min="1" max="60" value="5" hidden></div>
+    <div class="mode-choices">
+      <label><input type="radio" name="randomMode" value="fresh" checked><span>新开一把</span></label>
+      <label><input type="radio" name="randomMode" value="append"><span>追加到现有卡轴</span></label>
+      <label><input id="randomAllowRepeat" type="checkbox"><span>允许重复装载</span></label>
+    </div>
+    <div class="pair-actions"><button data-close-random type="button">取消</button><button id="randomGoBtn" class="accent" type="button">随机装轴 ✦</button></div>
+  </section>
+</div>
+
+<div id="reelInstallOverlay" class="overlay" hidden>
+  <section class="install-sheet" role="dialog" aria-modal="true" aria-labelledby="reelInstallTitle">
+    <header class="sheet-head"><div><h2 id="reelInstallTitle">卡带</h2><p id="reelInstallMeta"></p></div><button class="sheet-x" data-close-install type="button">×</button></header>
+    <div id="reelInstallBody"></div>
+  </section>
+</div>
+
+<div id="cardMenuOverlay" class="overlay" hidden>
+  <section class="action-menu" role="dialog" aria-modal="true" aria-labelledby="cardMenuTitle">
+    <header class="sheet-head"><h2 id="cardMenuTitle">卡带操作</h2><button class="sheet-x" data-close-card-menu type="button">×</button></header>
+    <div class="action-list">
+      <button data-card-action="install" type="button">查看装载详情</button>
+      <button data-card-action="detail" type="button">查看卡带详情</button>
+      <button data-card-action="edit" type="button">编辑卡带</button>
+      <button data-card-action="copy" type="button">复制卡带</button>
+      <button data-card-action="export" type="button">导出卡带</button>
+      <button data-card-action="delete" class="danger" type="button">删除卡带</button>
+    </div>
+  </section>
+</div>
+
+<div id="batchMenuOverlay" class="overlay" hidden>
+  <section class="batch-menu" role="dialog" aria-modal="true" aria-labelledby="batchMenuTitle">
+    <header class="batch-menu-head"><div><h2 id="batchMenuTitle">批量编辑</h2><span id="batchMenuCount" class="batch-count-pill">已选 0 张</span></div><button class="sheet-x" data-close-batch-menu type="button">×</button></header>
+    <div class="batch-action-grid">
+      <button data-batch-action="category" type="button"><span class="action-icon">▤</span><span>修改分类</span></button>
+      <button data-batch-action="recorder" type="button"><span class="action-icon">◎</span><span>修改录入方</span></button>
+      <button data-batch-action="export" type="button"><span class="action-icon">⇧</span><span>批量导出</span></button>
+      <button data-batch-action="delete" class="danger" type="button"><span class="action-icon">⌫</span><span>批量删除</span></button>
+    </div>
+  </section>
+</div>
+
+<div id="batchValueOverlay" class="overlay" hidden>
+  <section class="small-panel" role="dialog" aria-modal="true" aria-labelledby="batchValueTitle">
+    <header class="sheet-head"><h2 id="batchValueTitle">批量修改</h2><button class="sheet-x" data-close-batch-value type="button">×</button></header>
+    <div id="batchValueBody"></div>
+    <div class="pair-actions"><button data-close-batch-value type="button">取消</button><button id="batchValueApplyBtn" class="accent" type="button">应用</button></div>
+  </section>
+</div>
+
+<div id="detailOverlay" class="overlay" hidden>
+  <section class="detail-panel" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+    <header class="sheet-head"><div><h2 id="detailTitle">卡带详情</h2><p id="detailMeta"></p></div><button class="sheet-x" data-close-detail type="button">×</button></header>
+    <div id="detailEntries" class="detail-entries"></div>
+  </section>
+</div>
+
+<div id="editorOverlay" class="overlay" hidden>
+  <section class="editor-modal" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
+    <header class="sheet-head"><h2 id="editorTitle">编辑卡带</h2><button class="sheet-x" data-close-editor type="button">×</button></header>
+    <div class="editor-meta">
+      <label class="field"><span>卡带名</span><input id="edName" maxlength="100"></label>
+      <label class="field"><span>分类</span><input id="edCategory" maxlength="100"></label>
+      <label class="field"><span>图标</span><input id="edIcon" maxlength="20"></label>
+      <label class="field"><span>录入方</span><select id="edRecorder"><option>用户</option><option>AI</option><option>共同</option><option>导入</option></select></label>
+    </div>
+    <div class="candidate-head"><h3>候选列表</h3><button id="addEntryBtn" type="button">＋ 新增候选</button></div>
+    <div id="candidateList" class="candidate-list"></div>
+    <div class="editor-actions"><button id="exportTapeBtn" type="button">导出</button><button id="deleteTapeBtn" class="danger" type="button">删除卡带</button><button id="saveTapeBtn" class="accent" type="button">保存</button></div>
+  </section>
+</div>
+
+<div id="entryOverlay" class="overlay" hidden>
+  <section class="small-panel" role="dialog" aria-modal="true" aria-labelledby="entryTitle">
+    <header class="sheet-head"><h2 id="entryTitle">编辑候选</h2><button class="sheet-x" data-close-entry type="button">×</button></header>
+    <label class="field"><span>标题</span><input id="entryLabel" maxlength="100"></label>
+    <label class="field"><span>详情 / 备注</span><textarea id="entryDetail" rows="6"></textarea></label>
+    <div class="entry-actions"><button id="deleteEntryBtn" class="danger" type="button">删除</button><button id="saveEntryBtn" class="accent" type="button">保存</button></div>
+  </section>
+</div>
+
+<div id="spinResultOverlay" class="overlay spin-result-overlay" hidden>
+  <section class="spin-result-modal" role="dialog" aria-modal="true" aria-labelledby="spinResultTitle">
+    <header class="spin-result-head"><span aria-hidden="true">🎰</span><h2 id="spinResultTitle">本次结果</h2><button id="spinResultClose" type="button" aria-label="关闭结果">×</button><p id="spinResultMeta"></p></header>
+    <div id="spinResultBody" class="spin-result-body"></div>
+    <div class="spin-result-actions"><button id="spinAgainBtn" class="again" type="button">↻ 再转一次 ✦</button><button id="saveResultBtn" type="button">⇩ 保存结果</button><button id="copyResultBtn" type="button">▣ 复制结果</button></div>
+  </section>
+</div>
+
+<div id="toast" class="toast" aria-live="polite"></div>
+
+<script src="./web/history-local.js"></script>\n<script src="./web/core.js"></script>
+<script src="./web/app.js"></script>
+</body>
+</html>
