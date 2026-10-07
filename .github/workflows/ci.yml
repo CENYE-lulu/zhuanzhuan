@@ -30,3 +30,10 @@ jobs:
           node --check web/core.js
           node --check web/app.js
           node --check web/history-local.js
+          node --check shared/sync-client.js
+      - name: Check bridge syntax
+        working-directory: bridge
+        run: npm run check
+      - name: Run bridge tests
+        working-directory: bridge
+        run: npm test

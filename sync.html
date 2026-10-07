@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#171018">
+<title>同步设置｜Zhuanzhuan</title>
+<style>
+:root{color-scheme:dark;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#171018;color:#f8ead8;min-height:100vh}
+main{max-width:760px;margin:0 auto;padding:32px 20px 56px}
+a{color:#ffd46f}
+.panel{background:#2a1928;border:1px solid #9b7331;border-radius:24px;padding:24px;box-shadow:0 18px 50px #0005}
+h1{margin:0 0 8px;font-size:2rem}
+p{line-height:1.65;color:#d8c7bd}
+label{display:block;margin:18px 0 8px;font-weight:700}
+input{width:100%;padding:13px 14px;border-radius:12px;border:1px solid #8a6640;background:#160f16;color:#fff;font:inherit}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+button{padding:12px 18px;border:0;border-radius:12px;font:inherit;font-weight:700;cursor:pointer}
+.primary{background:#e7a83f;color:#231306}.secondary{background:#4c3948;color:#fff}.danger{background:#7e2940;color:#fff}
+.status{margin-top:18px;padding:12px 14px;border-radius:12px;background:#1d151d;min-height:48px;white-space:pre-wrap}
+.note{font-size:.93rem}
+code{background:#120c12;padding:.15em .35em;border-radius:.4em}
+</style>
+</head>
+<body>
+<main>
+  <p><a href="./">← 返回转转机</a></p>
+  <section class="panel">
+    <h1>同步设置 🌉</h1>
+    <p>默认情况下，转转机仍然只使用浏览器本地数据。只有在这里填写你自己的同步桥后，网页才会连接远端。</p>
+
+    <label for="baseUrl">Bridge URL</label>
+    <input id="baseUrl" type="url" placeholder="https://spinner.example.com">
+
+    <label for="token">Access token</label>
+    <input id="token" type="password" autocomplete="off" placeholder="你自己设置的 ZHUANZHUAN_BRIDGE_TOKEN">
+
+    <div class="actions">
+      <button id="testBtn" class="secondary" type="button">测试连接</button>
+      <button id="saveBtn" class="primary" type="button">保存并启用</button>
+      <button id="clearBtn" class="danger" type="button">停用同步</button>
+    </div>
+    <div id="status" class="status">未检查。</div>
+
+    <p class="note">GitHub Pages 使用 HTTPS。若同步桥部署在公网，Bridge URL 也应使用 HTTPS；同时把本页面的站点来源加入服务器的 <code>ZHUANZHUAN_ALLOWED_ORIGINS</code>。</p>
+    <p class="note">停用同步不会删除浏览器本地卡带，也不会删除你服务器里的 SQLite 数据。</p>
+  </section>
+</main>
+<script src="./shared/sync-client.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const saved=globalThis.ZhuanzhuanSync.readSettings();
+if(saved){$('baseUrl').value=saved.baseUrl;$('token').value=saved.token||''}
+function headers(){const token=$('token').value.trim();return token?{authorization:'Bearer '+token}:{}}
+async function check(){
+  const base=$('baseUrl').value.trim().replace(/\/+$/,'');
+  if(!/^https?:\/\//i.test(base))throw new Error('先填一个 http:// 或 https:// 地址');
+  const response=await fetch(base+'/api/shared-config/zhuanzhuan-spinner',{headers:headers()});
+  const body=await response.json().catch(()=>({}));
+  if(!response.ok||!body.ok)throw new Error(body?.error?.message||('HTTP '+response.status));
+  return body;
+}
+$('testBtn').onclick=async()=>{
+  $('status').textContent='正在连接…';
+  try{const body=await check();$('status').textContent='连接成功 ✅\n远端版本：'+body.version+'\n更新时间：'+(body.updatedAt||'—')}
+  catch(error){$('status').textContent='连接失败 ❌\n'+error.message}
+};
+$('saveBtn').onclick=async()=>{
+  $('status').textContent='正在验证并保存…';
+  try{
+    const body=await check();
+    globalThis.ZhuanzhuanSync.writeSettings({baseUrl:$('baseUrl').value,token:$('token').value});
+    $('status').textContent='已启用同步 ✅\n远端版本：'+body.version+'\n回到转转机后会自动连接。';
+  }catch(error){$('status').textContent='没有保存 ❌\n'+error.message}
+};
+$('clearBtn').onclick=()=>{
+  globalThis.ZhuanzhuanSync.clearSettings();
+  $('baseUrl').value='';$('token').value='';
+  $('status').textContent='同步已停用。转转机继续使用浏览器本地数据。';
+};
+</script>
+</body>
+</html>

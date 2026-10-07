@@ -272,7 +272,7 @@ if(typeof document!=='undefined'){
   function applySharedConfig(config){
     const next=spinnerStateFromConfig(config);
     tapes=next.tapes;slots=next.slots;mode=next.mode;classic=next.classic;
-    saveLibrarySnapshot();
+    saveLibrarySnapshot();saveMachineSnapshot();
     selectedTapeIds=new Set([...selectedTapeIds].filter(id=>tapes.some(t=>t.id===id)));
     if(activeInstallReelId&&!findTape(activeInstallReelId))activeInstallReelId=null;
     if(editorTapeId&&!findTape(editorTapeId)){editorTapeId=null;editorDraft=null}
@@ -383,7 +383,7 @@ if(typeof document!=='undefined'){
   function blankDraft(){
     return {id:makeId('reel'),name:'新卡带',category:'自定义',icon:'🎞️',recorder:'用户',source:'browser',entries:[]};
   }
-  function exportPayload(tape){return{version:1,type:'starleaf-spinner-tape',exportedAt:new Date().toISOString(),tape:{
+  function exportPayload(tape){return{version:1,type:'zhuanzhuan-spinner-tape',exportedAt:new Date().toISOString(),tape:{
     id:tape.id,name:tape.name,category:tape.category,icon:tape.icon,recorder:normalizeRecorder(tape.recorder),source:normalizeTapeSource(tape.source),
     entries:tape.entries.map(entry=>({id:entry.id,label:entry.label,detail:entryDetail(entry)}))
   }}}
@@ -393,7 +393,7 @@ if(typeof document!=='undefined'){
   }
   function downloadTape(tape){downloadJson(`${tape.name}.json`,exportPayload(tape))}
   function normalizeImportedTape(raw,index=0){
-    const source=raw&&raw.type==='starleaf-spinner-tape'?raw.tape:(raw&&raw.tape?raw.tape:raw);
+    const source=raw&&(raw.type==='zhuanzhuan-spinner-tape'||raw.type==='starleaf-spinner-tape')?raw.tape:(raw&&raw.tape?raw.tape:raw);
     if(!source||typeof source!=='object')throw new Error('JSON 中没有可识别的卡带');
     const id=(source.id&&!findTape(source.id))?String(source.id):makeId('reel');
     const entries=Array.isArray(source.entries)?source.entries.map((entry,i)=>{
@@ -405,7 +405,7 @@ if(typeof document!=='undefined'){
   }
   async function importJsonFile(file){
     const data=JSON.parse(await file.text());
-    const raws=data&&data.type==='starleaf-spinner-tape-bundle'&&Array.isArray(data.tapes)?data.tapes:[data];
+    const raws=data&&(data.type==='zhuanzhuan-spinner-tape-bundle'||data.type==='starleaf-spinner-tape-bundle')&&Array.isArray(data.tapes)?data.tapes:[data];
     const imported=raws.map((item,index)=>normalizeImportedTape(item,index));
     for(const tape of imported){upsertLocalTape(tape);queueShared(spinnerReelAction(tape))}
     renderAll();toast(`已导入 ${imported.length} 张卡带`);
@@ -526,7 +526,7 @@ if(typeof document!=='undefined'){
   }
   function batchExport(){
     const chosen=tapes.filter(t=>selectedTapeIds.has(t.id));
-    downloadJson('星叶转转机_批量卡带.json',{version:1,type:'starleaf-spinner-tape-bundle',exportedAt:new Date().toISOString(),tapes:chosen.map(t=>exportPayload(t).tape)})
+    downloadJson('zhuanzhuan_批量卡带.json',{version:1,type:'zhuanzhuan-spinner-tape-bundle',exportedAt:new Date().toISOString(),tapes:chosen.map(t=>exportPayload(t).tape)})
   }
   function batchDelete(){
     if(!confirm(`批量删除已选 ${selectedTapeIds.size} 张卡带？`))return;
@@ -753,6 +753,30 @@ if(typeof document!=='undefined'){
   function renderAll(){renderStorage();renderSlots();renderRack();if(activeInstallReelId&&!el.installOverlay.hidden)renderInstall();if(editorDraft&&!el.editorOverlay.hidden)renderCandidates()}
   renderAll();
 
-  // Standalone open-source build: browser state stays local by design.
-  // No SharedGameConfig bridge is started here.
+  if(globalThis.SharedGameConfig?.isConfigured?.()){
+    const localBeforeSync={
+      tapes:tapes.map(copySpinnerTape),
+      slots:slots.map(copySlotData),
+      mode,
+      classic:structuredClone(classic)
+    };
+    sharedConfig=createSpinnerSharedClient(globalThis.SharedGameConfig,{onConfig:applySharedConfig,onStatus:setSyncStatus});
+    sharedConfig.start({migrate:async({config,isDefault,act,helpers})=>{
+      const plan=prepareSpinnerMigration({localTapes:localBeforeSync.tapes,config,helpers});
+      for(const action of plan.actions)await act(action.operation,action.payload);
+      if(isDefault&&localBeforeSync.slots.length>=MIN_AXIS_COUNT){
+        const baseIds=localBeforeSync.slots.slice(0,MIN_AXIS_COUNT).map(slot=>slot.id);
+        await act('clear_axes',{axisIds:baseIds});
+        for(const slot of localBeforeSync.slots.slice(MIN_AXIS_COUNT))await act('add_axis',{axisId:slot.id});
+        for(const slot of localBeforeSync.slots){
+          if(slot.tapeRef)await act('set_axis_reel',{axisId:slot.id,reelId:slot.tapeRef});
+          if(slot.tapeRef&&slot.enabled===false)await act('set_axis_enabled',{axisId:slot.id,enabled:false});
+          if(normalizeDrawCount(slot.drawCount)!==1)await act('set_axis_draw_count',{axisId:slot.id,drawCount:normalizeDrawCount(slot.drawCount)});
+        }
+        await act('set_mode',{mode:localBeforeSync.mode,rule:localBeforeSync.classic?.rule||{type:'all-same'},maxRounds:localBeforeSync.classic?.maxRounds||5});
+      }
+    }}).catch(error=>{
+      syncError=error.message;setSyncStatus(error.queued?'queued':'offline');
+    });
+  }
 }

@@ -1,0 +1,13 @@
+{
+  "name": "zhuanzhuan-bridge",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "engines": { "node": ">=22.5" },
+  "scripts": {
+    "start": "node src/server.js",
+    "check": "node --check src/state.js && node --check src/db.js && node --check src/server.js",
+    "test": "node --test test/*.test.js"
+  }
+}

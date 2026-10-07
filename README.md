@@ -13,7 +13,7 @@
 - 一根卡轴可以一次抽取多个不重复结果。
 - 可选本地 MCP，让 AI 读取、创建、修改卡带并执行抽取。
 - MCP 默认只监听 `127.0.0.1`，数据默认保存在 `~/.zhuanzhuan/data.json`。
-- 网页与 MCP 不做实时双向同步；它们各自保存用户后续修改。
+- 默认情况下网页与 MCP 各自使用本地数据；需要时可以部署可选的 **Self-hosted Sync Bridge**，让网页与 MCP 共用同一套卡带和卡轴状态。
 
 ## 自带卡带
 
@@ -38,6 +38,44 @@ http://127.0.0.1:8080/
 ```
 
 普通刷新不会清空卡带或已经装好的卡轴。清除站点数据、换浏览器或换设备前，仍建议先导出重要卡带 JSON。
+
+## 可选自建同步桥 🌉
+
+Zhuanzhuan 默认仍然是 local-first，不要求账号或云服务器。
+
+如果你有自己的 VPS、NAS、家用服务器或树莓派，可以运行仓库里的 `bridge/`，把网页与 MCP 接到同一个 SQLite 数据库：
+
+```text
+Web ─┐
+     ├─ Self-hosted Bridge ─ SQLite
+MCP ─┘
+```
+
+Bridge 保留了项目原本实际使用过的同步机制核心：**版本号冲突检测、actionId 幂等、浏览器离线队列、冲突重试与 SQLite 持久化**。
+
+快速启动：
+
+```bash
+cd bridge
+export ZHUANZHUAN_BRIDGE_TOKEN='change-me'
+export ZHUANZHUAN_ALLOWED_ORIGINS='https://your-name.github.io'
+npm start
+```
+
+然后在网页右上角打开 **同步设置**，填写 Bridge URL 和 token。
+
+让 MCP 使用同一座桥：
+
+```bash
+export ZHUANZHUAN_BRIDGE_URL='https://spinner.example.com'
+export ZHUANZHUAN_BRIDGE_TOKEN='change-me'
+cd mcp
+npm start
+```
+
+不设置 `ZHUANZHUAN_BRIDGE_URL` 时，MCP 继续使用原来的本地 JSON 模式。
+
+完整部署说明见 `bridge/README.md`。
 
 ## MCP
 
@@ -68,6 +106,11 @@ http://127.0.0.1:8787/health
 ZHUANZHUAN_DATA=/absolute/path/to/data.json
 ZHUANZHUAN_HOST=127.0.0.1
 ZHUANZHUAN_PORT=8787
+
+# 可选：让 MCP 改用自建同步桥
+ZHUANZHUAN_BRIDGE_URL=https://spinner.example.com
+ZHUANZHUAN_BRIDGE_TOKEN=change-me
+ZHUANZHUAN_HISTORY=/absolute/path/to/mcp-history.json
 ```
 
 MCP 工具：
@@ -85,7 +128,7 @@ MCP 工具：
 
 ## 数据与隐私
 
-网页数据默认只留在当前浏览器；MCP 数据默认只留在当前机器的 JSON 文件里。本项目本身不上传、收集或托管用户卡带。
+网页数据默认只留在当前浏览器；MCP 默认只使用当前机器的 JSON 文件。只有用户主动配置自己的 Bridge 后，卡带与卡轴状态才会发送到该用户自己指定的服务器。本项目不提供官方云同步，也不上传或托管用户卡带。
 
 ## 开发检查
 
@@ -104,6 +147,11 @@ npm test
 node --check web/core.js
 node --check web/app.js
 node --check web/history-local.js
+node --check shared/sync-client.js
+
+cd bridge
+npm run check
+npm test
 ```
 
 ## License
