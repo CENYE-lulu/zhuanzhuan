@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install MCP dependencies
+        working-directory: mcp
+        run: npm install
+      - name: Check MCP syntax
+        working-directory: mcp
+        run: npm run check
+      - name: Run MCP tests
+        working-directory: mcp
+        run: npm test
+      - name: Check browser scripts
+        run: |
+          node --check web/core.js
+          node --check web/app.js
+          node --check web/history-local.js
