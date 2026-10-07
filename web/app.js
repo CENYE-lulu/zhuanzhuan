@@ -753,6 +753,30 @@ if(typeof document!=='undefined'){
   function renderAll(){renderStorage();renderSlots();renderRack();if(activeInstallReelId&&!el.installOverlay.hidden)renderInstall();if(editorDraft&&!el.editorOverlay.hidden)renderCandidates()}
   renderAll();
 
-  // Standalone open-source build: browser state stays local by design.
-  // No SharedGameConfig bridge is started here.
+  if(globalThis.SharedGameConfig?.isConfigured?.()){
+    const localBeforeSync={
+      tapes:tapes.map(copySpinnerTape),
+      slots:slots.map(copySlotData),
+      mode,
+      classic:structuredClone(classic)
+    };
+    sharedConfig=createSpinnerSharedClient(globalThis.SharedGameConfig,{onConfig:applySharedConfig,onStatus:setSyncStatus});
+    sharedConfig.start({migrate:async({config,isDefault,act,helpers})=>{
+      const plan=prepareSpinnerMigration({localTapes:localBeforeSync.tapes,config,helpers});
+      for(const action of plan.actions)await act(action.operation,action.payload);
+      if(isDefault&&localBeforeSync.slots.length>=MIN_AXIS_COUNT){
+        const baseIds=localBeforeSync.slots.slice(0,MIN_AXIS_COUNT).map(slot=>slot.id);
+        await act('clear_axes',{axisIds:baseIds});
+        for(const slot of localBeforeSync.slots.slice(MIN_AXIS_COUNT))await act('add_axis',{axisId:slot.id});
+        for(const slot of localBeforeSync.slots){
+          if(slot.tapeRef)await act('set_axis_reel',{axisId:slot.id,reelId:slot.tapeRef});
+          if(slot.tapeRef&&slot.enabled===false)await act('set_axis_enabled',{axisId:slot.id,enabled:false});
+          if(normalizeDrawCount(slot.drawCount)!==1)await act('set_axis_draw_count',{axisId:slot.id,drawCount:normalizeDrawCount(slot.drawCount)});
+        }
+        await act('set_mode',{mode:localBeforeSync.mode,rule:localBeforeSync.classic?.rule||{type:'all-same'},maxRounds:localBeforeSync.classic?.maxRounds||5});
+      }
+    }}).catch(error=>{
+      syncError=error.message;setSyncStatus(error.queued?'queued':'offline');
+    });
+  }
 }
