@@ -87,6 +87,25 @@ MCP 工具：
 
 网页数据默认只留在当前浏览器；MCP 数据默认只留在当前机器的 JSON 文件里。本项目本身不上传、收集或托管用户卡带。
 
+## 开发检查
+
+仓库自带 GitHub Actions CI。也可以在本地执行：
+
+```bash
+cd mcp
+npm install
+npm run check
+npm test
+```
+
+浏览器脚本可以使用 Node 做基础语法检查：
+
+```bash
+node --check web/core.js
+node --check web/app.js
+node --check web/history-local.js
+```
+
 ## License
 
 软件代码使用 **GNU Affero General Public License v3.0 only (AGPL-3.0-only)**。基于本项目代码进行修改、分发，或以修改版通过网络向用户提供服务时，需要遵守 AGPL 的对应源码与同许可证义务。详见 `LICENSE`。
