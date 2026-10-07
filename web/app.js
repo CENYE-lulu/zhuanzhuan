@@ -272,7 +272,7 @@ if(typeof document!=='undefined'){
   function applySharedConfig(config){
     const next=spinnerStateFromConfig(config);
     tapes=next.tapes;slots=next.slots;mode=next.mode;classic=next.classic;
-    saveLibrarySnapshot();
+    saveLibrarySnapshot();saveMachineSnapshot();
     selectedTapeIds=new Set([...selectedTapeIds].filter(id=>tapes.some(t=>t.id===id)));
     if(activeInstallReelId&&!findTape(activeInstallReelId))activeInstallReelId=null;
     if(editorTapeId&&!findTape(editorTapeId)){editorTapeId=null;editorDraft=null}
