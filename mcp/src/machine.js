@@ -96,10 +96,6 @@ export function setMode(machine,{mode,rule,maxRounds}){
   const state=normalizeMachine(machine),nextMode=mode==='classic'?'classic':'combo';
   const nextRule=structuredClone(rule||{type:'all-same'});
   const rounds=Math.max(1,Math.min(20,Number(maxRounds)||5));
-  if(nextMode==='classic'){
-    const active=state.slots.filter(slot=>slot.enabled);
-    core.validateClassicConfig(active,nextRule,rounds);
-  }
   return{...state,mode:nextMode,classic:{rule:nextRule,maxRounds:rounds}};
 }
 export function installDeck(machine,decks,{deckId,allowDuplicate=false}){
