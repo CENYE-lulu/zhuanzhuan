@@ -23,6 +23,8 @@ function deck(value){
     name:String(value?.name||'').trim(),
     category:String(value?.category||'自定义').trim()||'自定义',
     icon:String(value?.icon||'🎞️').trim()||'🎞️',
+    recorder:['用户','AI','共同','导入'].includes(String(value?.recorder||''))?String(value.recorder):'AI',
+    source:String(value?.source||'mcp').trim()||'mcp',
     entries:Array.isArray(value?.entries)?value.entries.map(entry):[]
   };
   if(!out.name)throw new Error('卡带名不能为空');
@@ -31,7 +33,7 @@ function deck(value){
 }
 function samples(){
   return FIRST_PARTY_TAPES.map(item=>deck({
-    id:item.id,name:item.name,category:item.category,icon:item.icon,
+    id:item.id,name:item.name,category:item.category,icon:item.icon,recorder:'导入',source:'builtin',
     entries:item.entries.map(entry=>({id:entry.id,label:entry.label,detail:entry.detail}))
   }));
 }
@@ -91,6 +93,16 @@ export function createStore(file=process.env.ZHUANZHUAN_DATA||DEFAULT_FILE){
     data.decks[index]=deck({...data.decks[index],...patch,id:deckId});
     write(data);return data.decks[index];
   }
+  function duplicateDeck(deckId,name){
+    const data=read(),found=data.decks.find(item=>item.id===deckId);
+    if(!found)throw new Error('找不到卡带');
+    const created=deck({
+      ...found,id:randomUUID(),name:String(name||`${found.name}（副本）`).trim(),
+      recorder:'AI',source:'mcp',
+      entries:found.entries.map(item=>({id:randomUUID(),label:item.label,detail:item.detail}))
+    });
+    data.decks.unshift(created);write(data);return created;
+  }
   function deleteDeck(deckId){
     const data=read(),found=data.decks.find(item=>item.id===deckId);
     if(!found)throw new Error('找不到卡带');
@@ -148,7 +160,7 @@ export function createStore(file=process.env.ZHUANZHUAN_DATA||DEFAULT_FILE){
   function history(limit=20){return read().history.slice(0,Math.max(1,Math.min(100,Number(limit)||20)))}
   function exportData(){return read()}
   return{
-    file,read,listDecks,getDeck,createDeck,updateDeck,deleteDeck,draw,history,exportData,
+    file,read,listDecks,getDeck,createDeck,updateDeck,duplicateDeck,deleteDeck,draw,history,exportData,
     getMachine,assignAxis,toggleAxis,setDrawCount,addMachineAxis,deleteMachineAxis,
     installMachineDeck,ejectMachineDeck,clearMachine,resetMachineState,setMachineMode,
     randomInstallDecks,spinWholeMachine
