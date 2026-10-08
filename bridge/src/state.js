@@ -109,6 +109,17 @@ export function applyAction(current,operation,payload={}){
     }
     case 'reset_machine':
       config={...config,slots:core.makeSlots(),mode:'combo',classic:{rule:{type:'all-same'},maxRounds:5}};break;
+    case 'replace_machine': {
+      const machine=payload.machine;
+      if(!machine||typeof machine!=='object'||Array.isArray(machine))throw new Error('machine 必须是对象');
+      config={...config,
+        layoutVersion:machine.layoutVersion,
+        slots:machine.slots,
+        mode:machine.mode,
+        classic:machine.classic
+      };
+      break;
+    }
     default: throw new Error(`不支持的同步操作：${operation}`);
   }
   return normalizeConfig(config);
