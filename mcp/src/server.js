@@ -33,14 +33,19 @@ export function createZhuanzhuanMcp(store){
   },safe(async input=>({deck:await store.getDeck(input.deckId)})));
   server.registerTool('create_deck',{
     title:'Create deck',description:'Create a new deck.',
-    inputSchema:z.object({name:z.string().min(1).max(100),category:z.string().max(100).optional(),icon:z.string().max(20).optional(),entries:z.array(entry).max(500).optional()}).strict(),
+    inputSchema:z.object({name:z.string().min(1).max(100),category:z.string().max(100).optional(),icon:z.string().max(20).optional(),recorder:z.enum(['用户','AI','共同','导入']).optional(),entries:z.array(entry).max(500).optional()}).strict(),
     annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false}
   },safe(async input=>({deck:await store.createDeck(input)})));
   server.registerTool('update_deck',{
     title:'Update deck',description:'Update deck metadata or replace its entries.',
-    inputSchema:z.object({deckId:z.string().min(1),name:z.string().min(1).max(100).optional(),category:z.string().max(100).optional(),icon:z.string().max(20).optional(),entries:z.array(entry).max(500).optional()}).strict(),
+    inputSchema:z.object({deckId:z.string().min(1),name:z.string().min(1).max(100).optional(),category:z.string().max(100).optional(),icon:z.string().max(20).optional(),recorder:z.enum(['用户','AI','共同','导入']).optional(),entries:z.array(entry).max(500).optional()}).strict(),
     annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false}
   },safe(async input=>{const{deckId,...patch}=input;return{deck:await store.updateDeck(deckId,patch)}}));
+  server.registerTool('duplicate_deck',{
+    title:'Duplicate deck',description:'Copy a deck and all of its entries, like the web UI copy action.',
+    inputSchema:z.object({deckId:z.string().min(1),name:z.string().min(1).max(100).optional()}).strict(),
+    annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false}
+  },safe(async input=>({deck:await store.duplicateDeck(input.deckId,input.name)})));
   server.registerTool('delete_deck',{
     title:'Delete deck',description:'Delete one local deck.',
     inputSchema:z.object({deckId:z.string().min(1)}).strict(),
