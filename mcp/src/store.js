@@ -116,7 +116,13 @@ export function createStore(file=process.env.ZHUANZHUAN_DATA||DEFAULT_FILE){
   function addMachineAxis(input={}){
     return saveMachine(data=>{const result=addAxis(data.machine,input);data.machine=result.machine;return{axisId:result.axisId,machine:machineView(data.machine,data.decks)}})
   }
-  function deleteMachineAxis(input){return saveMachine(data=>{data.machine=deleteAxis(data.machine,input);return machineView(data.machine,data.decks)})}
+  function deleteMachineAxis(input){return saveMachine(data=>{
+    const slot=data.machine.slots.find(item=>item.id===input.axisId);
+    if(!slot)throw new Error('找不到轴位');
+    if(slot.tapeRef||slot.localTape)data.machine=assignDeck(data.machine,data.decks,{axisId:input.axisId,deckId:null});
+    data.machine=deleteAxis(data.machine,input);
+    return machineView(data.machine,data.decks);
+  })}
   function installMachineDeck(input){
     return saveMachine(data=>{const result=installDeck(data.machine,data.decks,input);data.machine=result.machine;return{axisId:result.axisId,machine:machineView(data.machine,data.decks)}})
   }
