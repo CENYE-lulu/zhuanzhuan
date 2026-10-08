@@ -25,32 +25,32 @@ export function createZhuanzhuanMcp(store){
     title:'List decks',description:'List decks, optionally filtered by query or category.',
     inputSchema:z.object({query:z.string().optional(),category:z.string().optional()}).strict(),
     annotations:{readOnlyHint:true,destructiveHint:false,openWorldHint:false}
-  },safe(input=>({decks:store.listDecks(input)})));
+  },safe(async input=>({decks:await store.listDecks(input)})));
   server.registerTool('get_deck',{
     title:'Get deck',description:'Read one deck and its entries.',
     inputSchema:z.object({deckId:z.string().min(1)}).strict(),
     annotations:{readOnlyHint:true,destructiveHint:false,openWorldHint:false}
-  },safe(input=>({deck:store.getDeck(input.deckId)})));
+  },safe(async input=>({deck:await store.getDeck(input.deckId)})));
   server.registerTool('create_deck',{
     title:'Create deck',description:'Create a new deck.',
     inputSchema:z.object({name:z.string().min(1).max(100),category:z.string().max(100).optional(),icon:z.string().max(20).optional(),entries:z.array(entry).max(500).optional()}).strict(),
     annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false}
-  },safe(input=>({deck:store.createDeck(input)})));
+  },safe(async input=>({deck:await store.createDeck(input)})));
   server.registerTool('update_deck',{
     title:'Update deck',description:'Update deck metadata or replace its entries.',
     inputSchema:z.object({deckId:z.string().min(1),name:z.string().min(1).max(100).optional(),category:z.string().max(100).optional(),icon:z.string().max(20).optional(),entries:z.array(entry).max(500).optional()}).strict(),
     annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false}
-  },safe(input=>{const{deckId,...patch}=input;return{deck:store.updateDeck(deckId,patch)}}));
+  },safe(async input=>{const{deckId,...patch}=input;return{deck:await store.updateDeck(deckId,patch)}}));
   server.registerTool('delete_deck',{
     title:'Delete deck',description:'Delete one local deck.',
     inputSchema:z.object({deckId:z.string().min(1)}).strict(),
     annotations:{readOnlyHint:false,destructiveHint:true,openWorldHint:false}
-  },safe(input=>store.deleteDeck(input.deckId)));
+  },safe(async input=>await store.deleteDeck(input.deckId)));
   server.registerTool('draw',{
     title:'Draw from deck',description:'Draw unique entries from a deck and save the result to local history.',
     inputSchema:z.object({deckId:z.string().min(1),count:z.number().int().min(1).max(20).optional().default(1)}).strict(),
     annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false}
-  },safe(input=>store.draw(input.deckId,input.count)));
+  },safe(async input=>await store.draw(input.deckId,input.count)));
   server.registerTool('get_machine',{
     title:'Get machine',description:'Read the current spinner machine: axes, installed decks, enabled state, per-axis draw counts, and mode.',
     inputSchema:z.object({}).strict(),
@@ -134,12 +134,12 @@ export function createZhuanzhuanMcp(store){
     title:'Get history',description:'Read recent local draw history.',
     inputSchema:z.object({limit:z.number().int().min(1).max(100).optional().default(20)}).strict(),
     annotations:{readOnlyHint:true,destructiveHint:false,openWorldHint:false}
-  },safe(input=>({history:store.history(input.limit)})));
+  },safe(async input=>({history:await store.history(input.limit)})));
   server.registerTool('export_data',{
     title:'Export local data',description:'Read the full local data object for backup or migration.',
     inputSchema:z.object({}).strict(),
     annotations:{readOnlyHint:true,destructiveHint:false,openWorldHint:false}
-  },safe(()=>store.exportData()));
+  },safe(async()=>await store.exportData()));
   return server;
 }
 async function body(req){
