@@ -11,7 +11,7 @@
 - 抽取历史保存在浏览器本地。
 - 支持新建、编辑、复制、分类、搜索、批量管理、随机装轴和 JSON 导入导出。
 - 一根卡轴可以一次抽取多个不重复结果。
-- 可选本地 MCP，让 AI 读取、创建、修改卡带并执行抽取。
+- 可选本地 MCP，让 AI 拥有与网页核心操作对齐的卡带库与转转机控制能力。
 - MCP 默认只监听 `127.0.0.1`，数据默认保存在 `~/.zhuanzhuan/data.json`。
 - 默认情况下网页与 MCP 各自使用本地数据；需要时可以部署可选的 **Self-hosted Sync Bridge**，让网页与 MCP 共用同一套卡带和卡轴状态。
 
@@ -113,18 +113,20 @@ ZHUANZHUAN_BRIDGE_TOKEN=change-me
 ZHUANZHUAN_HISTORY=/absolute/path/to/mcp-history.json
 ```
 
-MCP 工具：
+MCP 工具分成两层：
 
-- `list_decks`
-- `get_deck`
-- `create_deck`
-- `update_deck`
-- `delete_deck`
-- `draw`
-- `get_history`
-- `export_data`
+**卡带库：** `list_decks`、`get_deck`、`create_deck`、`update_deck`、`duplicate_deck`、`delete_deck`、`draw`、`get_history`、`export_data`
 
-不同 MCP 客户端的配置字段可能不同，把本地 HTTP MCP 地址指向 `http://127.0.0.1:8787/mcp` 即可。
+**机器控制：** `get_machine`、`assign_deck_to_axis`、`install_deck`、`eject_axis`、`eject_deck`、`set_axis_enabled`、`set_axis_draw_count`、`add_axis`、`delete_axis`、`clear_axes`、`reset_machine`、`set_mode`、`random_install`、`spin_machine`
+
+其中：
+
+- `draw(deckId, count)`：从**同一张卡带**抽取一个或多个不重复候选。
+- `spin_machine()`：像网页点击一次「转起来」一样，**一次转动所有已启用卡轴**，并遵守每轴的抽取数量与当前模式。
+- `random_install`：对应网页里的随机装轴，可选择分类、数量、全新装载或追加装载。
+- MCP 的机器状态在本地模式写入 `~/.zhuanzhuan/data.json`；Bridge 模式则与网页共用服务器上的机器状态。
+
+不同 MCP 客户端的配置字段可能不同，把本地 HTTP MCP 地址指向 `http://127.0.0.1:8787/mcp` 即可。设计原则是：网页能完成的核心卡带与机器操作，MCP 也提供对应能力，而不是让 AI 只能逐张卡带单独抽取。
 
 ## 数据与隐私
 
