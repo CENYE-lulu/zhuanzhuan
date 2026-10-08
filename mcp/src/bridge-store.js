@@ -104,6 +104,14 @@ export function createBridgeStore({
     await act('assign_reel',{reel:next});
     return next;
   }
+  async function duplicateDeck(deckId,name){
+    const found=await getDeck(deckId);
+    return createDeck({
+      ...found,id:`reel-${randomUUID()}`,name:String(name||`${found.name}（副本）`).trim(),
+      recorder:'AI',source:'mcp',
+      entries:found.entries.map(item=>({id:randomUUID(),label:item.label,detail:item.detail}))
+    });
+  }
   async function deleteDeck(deckId){
     const current=await getDeck(deckId);
     await act('delete_reel',{reelId:deckId});
@@ -204,7 +212,7 @@ export function createBridgeStore({
   }
 
   return{
-    file:`bridge:${root}`,listDecks,getDeck,createDeck,updateDeck,deleteDeck,draw,history,exportData,
+    file:`bridge:${root}`,listDecks,getDeck,createDeck,updateDeck,duplicateDeck,deleteDeck,draw,history,exportData,
     getMachine,assignAxis,toggleAxis,setDrawCount,addMachineAxis,deleteMachineAxis,
     installMachineDeck,ejectMachineDeck,clearMachine,resetMachineState,setMachineMode,
     randomInstallDecks,spinWholeMachine
