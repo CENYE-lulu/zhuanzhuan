@@ -2,6 +2,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { randomInt, randomUUID } from 'node:crypto';
+import {
+  normalizeMachine,machineView,assignDeck,setAxisEnabled,setAxisDrawCount,addAxis,deleteAxis,
+  clearAxes,resetMachine,setMode,installDeck,ejectDeckEverywhere,randomInstall,spinMachine
+} from './machine.js';
 
 function entry(value){
   if(typeof value==='string')return{id:randomUUID(),label:value.trim(),detail:''};
@@ -63,10 +67,11 @@ export function createBridgeStore({
     return body;
   }
   async function snapshot(){return request(endpoint)}
-  async function act(operation,payload){
+  async function act(operation,payloadOrFactory){
     const actionId=randomUUID();
     let current=await snapshot();
     for(let attempt=0;attempt<2;attempt++){
+      const payload=typeof payloadOrFactory==='function'?payloadOrFactory(current):payloadOrFactory;
       const response=await fetch(endpoint+'/actions',{
         method:'POST',
         headers:headers({'content-type':'application/json'}),
@@ -110,8 +115,98 @@ export function createBridgeStore({
     const history=readHistory(historyFile);history.unshift(result);writeHistory(historyFile,history);
     return result;
   }
-  async function history(limit=20){return readHistory(historyFile).slice(0,Math.max(1,Math.min(100,Number(limit)||20)))}
-  async function exportData(){return{version:1,decks:await listDecks(),history:readHistory(historyFile)}}
+  function stateMachine(config){
+    return normalizeMachine({
+      layoutVersion:config.layoutVersion,
+      slots:config.slots,
+      mode:config.mode,
+      classic:config.classic
+    });
+  }
+  async function getMachine(){
+    const current=await snapshot();
+    return machineView(stateMachine(current.config),current.config.roomReels||[]);
+  }
+  async function replaceMachine(transform){
+    let extra={};
+    const body=await act('replace_machine',current=>{
+      const decks=current.config.roomReels||[];
+      const transformed=transform(stateMachine(current.config),decks)||{};
+      extra=transformed.extra||{};
+      return{machine:transformed.machine||transformed};
+    });
+    return{...extra,machine:machineView(stateMachine(body.config),body.config.roomReels||[])};
+  }
+  async function assignAxis(input){
+    const result=await replaceMachine((machine,decks)=>assignDeck(machine,decks,input));
+    return result.machine;
+  }
+  async function toggleAxis(input){
+    const result=await replaceMachine((machine,decks)=>setAxisEnabled(machine,decks,input));
+    return result.machine;
+  }
+  async function setDrawCount(input){
+    const result=await replaceMachine(machine=>setAxisDrawCount(machine,input));
+    return result.machine;
+  }
+  async function addMachineAxis(input={}){
+    return replaceMachine(machine=>{
+      const result=addAxis(machine,input);
+      return{machine:result.machine,extra:{axisId:result.axisId}};
+    });
+  }
+  async function deleteMachineAxis(input){
+    const result=await replaceMachine((machine,decks)=>{
+      let next=machine;
+      const slot=next.slots.find(item=>item.id===input.axisId);
+      if(!slot)throw new Error('找不到轴位');
+      if(slot.tapeRef||slot.localTape)next=assignDeck(next,decks,{axisId:input.axisId,deckId:null});
+      return deleteAxis(next,input);
+    });
+    return result.machine;
+  }
+  async function installMachineDeck(input){
+    return replaceMachine((machine,decks)=>{
+      const result=installDeck(machine,decks,input);
+      return{machine:result.machine,extra:{axisId:result.axisId}};
+    });
+  }
+  async function ejectMachineDeck(input){
+    const result=await replaceMachine((machine,decks)=>ejectDeckEverywhere(machine,decks,input));
+    return result.machine;
+  }
+  async function clearMachine(){
+    const result=await replaceMachine(machine=>clearAxes(machine));return result.machine;
+  }
+  async function resetMachineState(){
+    const result=await replaceMachine(()=>resetMachine());return result.machine;
+  }
+  async function setMachineMode(input){
+    const result=await replaceMachine(machine=>setMode(machine,input));return result.machine;
+  }
+  async function randomInstallDecks(input){
+    return replaceMachine((machine,decks)=>{
+      const result=randomInstall(machine,decks,input);
+      return{machine:result.machine,extra:{installed:result.installed}};
+    });
+  }
+  async function spinWholeMachine(){
+    const current=await snapshot();
+    const result=spinMachine(stateMachine(current.config),current.config.roomReels||[]);
+    const history=readHistory(historyFile);history.unshift({...result,type:'machine'});writeHistory(historyFile,history);
+    return result;
+  }
 
-  return{file:`bridge:${root}`,listDecks,getDeck,createDeck,updateDeck,deleteDeck,draw,history,exportData};
+  async function history(limit=20){return readHistory(historyFile).slice(0,Math.max(1,Math.min(100,Number(limit)||20)))}
+  async function exportData(){
+    const current=await snapshot();
+    return{version:2,decks:current.config.roomReels||[],machine:stateMachine(current.config),history:readHistory(historyFile)};
+  }
+
+  return{
+    file:`bridge:${root}`,listDecks,getDeck,createDeck,updateDeck,deleteDeck,draw,history,exportData,
+    getMachine,assignAxis,toggleAxis,setDrawCount,addMachineAxis,deleteMachineAxis,
+    installMachineDeck,ejectMachineDeck,clearMachine,resetMachineState,setMachineMode,
+    randomInstallDecks,spinWholeMachine
+  };
 }
